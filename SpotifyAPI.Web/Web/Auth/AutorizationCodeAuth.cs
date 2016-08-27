@@ -2,10 +2,12 @@
 using SpotifyAPI.Web.Enums;
 using SpotifyAPI.Web.Models;
 using System;
+using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Diagnostics;
 using System.IO;
 using System.Net;
+using System.Net.Http;
 using System.Text;
 using System.Threading;
 
@@ -44,12 +46,14 @@ namespace SpotifyAPI.Web.Auth
         /// <param name="clientSecret">Your Client-Secret, don't provide it if this is running on a client!</param>
         public Token RefreshToken(string refreshToken, string clientSecret)
         {
-            using (WebClient wc = new WebClient())
+            using (HttpClient hp = new HttpClient())
             {
-                wc.Proxy = null;
-                wc.Headers.Add("Authorization",
-                    "Basic " + Convert.ToBase64String(Encoding.UTF8.GetBytes(ClientId + ":" + clientSecret)));
-                NameValueCollection col = new NameValueCollection
+                hp.DefaultRequestHeaders.Add(
+                    "Authorization", 
+                    "Basic " + Convert.ToBase64String(Encoding.UTF8.GetBytes(ClientId + ":" + clientSecret))
+                    );
+
+                Dictionary<string, string> col = new Dictionary<string, string>
                 {
                     {"grant_type", "refresh_token"},
                     {"refresh_token", refreshToken}
@@ -58,8 +62,10 @@ namespace SpotifyAPI.Web.Auth
                 string response;
                 try
                 {
-                    byte[] data = wc.UploadValues("https://accounts.spotify.com/api/token", "POST", col);
+                    var dataTask = hp.PostAsync(new Uri("https://accounts.spotify.com/api/token/"), new FormUrlEncodedContent(col));
+                    var data = dataTask.Result.Content.ReadAsByteArrayAsync().Result; //The original API wasn't asynchronous either so I've chosen blocking way ATM
                     response = Encoding.UTF8.GetString(data);
+
                 }
                 catch (WebException e)
                 {
@@ -123,11 +129,10 @@ namespace SpotifyAPI.Web.Auth
         /// <returns></returns>
         public Token ExchangeAuthCode(string code, string clientSecret)
         {
-            using (WebClient wc = new WebClient())
-            {
-                wc.Proxy = null;
 
-                NameValueCollection col = new NameValueCollection
+            using (HttpClient hp = new HttpClient())
+            {
+                Dictionary<string, string> col = new Dictionary<string, string>
                 {
                     {"grant_type", "authorization_code"},
                     {"code", code},
@@ -139,8 +144,10 @@ namespace SpotifyAPI.Web.Auth
                 string response;
                 try
                 {
-                    byte[] data = wc.UploadValues("https://accounts.spotify.com/api/token", "POST", col);
+                    var dataTask = hp.PostAsync(new Uri("https://accounts.spotify.com/api/token/"), new FormUrlEncodedContent(col));
+                    var data = dataTask.Result.Content.ReadAsByteArrayAsync().Result; //The original API wasn't asynchronous either so I've chosen blocking way ATM
                     response = Encoding.UTF8.GetString(data);
+
                 }
                 catch (WebException e)
                 {
